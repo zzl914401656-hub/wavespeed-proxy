@@ -5,7 +5,6 @@ export const config = {
 export default async function handler(request) {
   const url = new URL(request.url);
   
-  // CORS 头
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
@@ -16,8 +15,17 @@ export default async function handler(request) {
     return new Response(null, { status: 204, headers: corsHeaders });
   }
   
-  // 转发到 WaveSpeed
   const targetUrl = 'https://api.wavespeed.ai' + url.pathname + url.search;
+  
+  // 关键修复：先读取请求体，避免 ReadableStream 直接传递失败
+  let body = null;
+  if (request.method !== 'GET' && request.method !== 'HEAD') {
+    try {
+      body = await request.text();
+    } catch (e) {
+      body = null;
+    }
+  }
   
   const headers = new Headers();
   const auth = request.headers.get('Authorization');
@@ -28,7 +36,7 @@ export default async function handler(request) {
   const response = await fetch(targetUrl, {
     method: request.method,
     headers: headers,
-    body: request.method !== 'GET' && request.method !== 'HEAD' ? request.body : null,
+    body: body,
   });
   
   const newHeaders = new Headers(response.headers);
